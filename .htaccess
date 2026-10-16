@@ -1,0 +1,7 @@
+# Only public/ is a web entry point when accessed as a Laragon subdirectory.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^$ public/ [R=302,L]
+    RewriteRule ^public(?:/|$) - [L]
+    RewriteRule . - [F,L]
+</IfModule>

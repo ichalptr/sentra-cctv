@@ -1,0 +1,38 @@
+[
+  {
+    "id": "CAM-01",
+    "name": "Jalan raya",
+    "zone": "Ilustrasi · Lalu lintas perkotaan",
+    "online": true,
+    "video": "media/street.mp4",
+    "seconds": 15,
+    "source": "https://mixkit.co/free-stock-video/busy-streets-1595/",
+    "sourceTitle": "Busy streets"
+  },
+  {
+    "id": "CAM-02",
+    "name": "Area parkir",
+    "zone": "Ilustrasi · Parkir dan jalan",
+    "online": true,
+    "video": "media/parking.mp4",
+    "seconds": 18,
+    "source": "https://mixkit.co/free-stock-video/carpark-and-freeway-traffic-2037/",
+    "sourceTitle": "Carpark and freeway traffic"
+  },
+  {
+    "id": "CAM-03",
+    "name": "Area penyeberangan",
+    "zone": "Ilustrasi · Keramaian pejalan kaki",
+    "online": true,
+    "video": "media/crowd.mp4",
+    "seconds": 20,
+    "source": "https://mixkit.co/free-stock-video/crowds-of-people-cross-a-street-junction-4401/",
+    "sourceTitle": "Crowds of people cross a street junction"
+  },
+  {
+    "id": "CAM-04",
+    "name": "Gudang",
+    "zone": "Lantai 1 · Area penyimpanan",
+    "online": false
+  }
+]
