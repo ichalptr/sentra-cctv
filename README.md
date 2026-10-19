@@ -49,7 +49,7 @@ Tidak perlu menghapus, memindahkan, atau mengganti file versi lama. Proyek Larav
 
 ## Batas percobaan
 
-Video menggunakan stock footage dan satu klip dataset CCTV MEVA untuk uji playback, belum terhubung ke Frigate. Kapasitas dan backup video masih simulasi. Tersimpan di database tidak berarti video sudah dicadangkan. Queue dan tabel job tersedia dari Laravel, tetapi belum ada job penyalinan video nyata. Baru ada satu akun administrator; manajemen akun, peran pengguna, reset password, audit log, dan operasional backup akan dikerjakan terpisah jika pendekatan ini diteruskan.
+Video menggunakan stock footage dan satu klip dataset CCTV MEVA untuk uji playback, belum terhubung ke Frigate. Backup file MP4 kini menyalin file nyata, memverifikasi SHA-256, menyediakan playback salinan, dan menguji pemulihan. Folder uji lokal belum melindungi dari kerusakan disk; gunakan media terpisah untuk operasional. Status salinan dan penjadwal tersedia di menu Backup. Aplikasi masih memakai satu akun administrator; manajemen peran, reset password, dan audit log belum tersedia.
 
 Data localStorage versi HTML tidak otomatis masuk database Laravel. Data dan halaman versi lama tetap utuh untuk perbandingan.
 
@@ -71,4 +71,16 @@ Muat ulang browser setelah mengganti mode. Toggle menyembunyikan kamera/arsip da
 
 Sumber: [MEVA](https://mevadata.org/), Kitware Inc. / IARPA, [CC BY 4.0](https://mevadata.org/resources/MEVA-data-license.txt). Klip berisi skenario dataset yang diperagakan, bukan insiden perusahaan. [AVI asli](https://mevadata-public-01.s3.amazonaws.com/drops-123-r13/2018-03-07/16/2018-03-07.16-50-00.16-55-00.bus.G331.r13.avi). Perubahan teknis: video AVI ke MP4 H.264 30 fps dengan FFmpeg; timestamp dinormalisasi untuk playback browser. Kredit, lisensi, dan tautan asli tersedia di pemutar dan ekspor metadata.
 
-Pilot hanya memvalidasi arsip, seek, dan penanda. Kriteria perusahaan yang masih harus diuji dengan sumber CCTV sebenarnya adalah akses real-time dan backup rekaman sesuai retensi. Pilot tidak menambahkan AI/deteksi objek dan tidak menjalankan penghapusan otomatis pada arsip contoh.
+Pilot hanya memvalidasi arsip, seek, dan penanda. Kriteria perusahaan yang masih harus diuji dengan sumber CCTV sebenarnya adalah akses real-time dan backup rekaman sesuai retensi. Uji motion detection telah dikeluarkan dari pemutar. File asli tidak dihapus oleh Sentra. Retensi hanya menghapus salinan backup milik Sentra yang tidak memiliki referensi catatan kejadian.
+
+
+## Pengaturan kamera dan backup
+
+1. Buka **Pengaturan**. Jika akses perangkat belum tersedia, lewati langkah kamera.
+2. Untuk tayangan perusahaan, gunakan halaman player WebRTC/HLS dari gateway. IP kamera atau URL RTSP saja belum dapat diputar oleh browser; gateway dan perekaman NVR tetap harus disiapkan oleh teknisi. Form ini tidak memasang atau menghubungkan Frigate secara otomatis.
+3. Pilih **Video uji bawaan**, atau folder berisi segmen MP4 yang sudah selesai ditulis untuk satu kamera. File yang berubah dalam 60 detik terakhir ditunda. Waktu arsip folder mengikuti waktu perubahan file, bukan waktu kejadian kamera.
+4. Pilih tujuan lokal untuk uji, atau folder disk/NAS yang sudah terpasang. Periksa izin akses pada komputer server, bukan komputer pengguna browser. Media fisik terpisah perlu dipastikan oleh operator.
+5. Simpan konfigurasi, lalu buka **Backup → Backup sekarang**. Salinan dapat diputar dan diuji pemulihannya. Maksimal 10 salinan baru diproses per putaran; putaran berikutnya melanjutkan file tertunda. Gunakan folder maksimal 500 MP4 per kamera/periode.
+6. Untuk otomatisasi, aktifkan opsi otomatis dan pilih interval 5/15/60 menit atau harian. Laravel `schedule:run` harus dipanggil setiap menit. Penjadwal Windows instalasi Laragon ini bernama `SentraCCTV-Backup`, berjalan tanpa jendela saat pengguna login. Status aktif ditentukan dari heartbeat terbaru, bukan sekadar konfigurasi tersimpan.
+
+Retensi berlaku untuk salinan backup, dihitung dari tanggal salinan pertama. Salinan dengan referensi catatan kejadian tidak dihapus otomatis. Pengaturan retensi rekaman asli tetap berada di NVR/gateway. Kegagalan akses tujuan atau pemeriksaan hash tidak boleh dianggap backup berhasil. Uji pemulihan membuat salinan sementara, mencocokkan hash, lalu membersihkan file uji.

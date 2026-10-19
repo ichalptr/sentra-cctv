@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\CctvStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -11,13 +12,14 @@ class WorkspaceController extends Controller
     public function cameras(): array
     {
         $pilot = json_decode(DB::table('workspace_settings')->where('key', 'meva_demo')->value('payload') ?? '{}', true);
+
         return DB::table('cameras')->orderBy('key')->get()->filter(fn ($r) => $r->key !== 'CAM-05' || ($pilot['enabled'] ?? false))->map(function ($r) {
             $c = json_decode($r->payload, true);
-            if (isset($c['video'])) {
+            if (! empty($c['video'])) {
                 $c['video'] = route('media', ['file' => basename($c['video'])]);
             }
 
-return $c;
+            return $c;
         })->values()->all();
     }
 
@@ -26,9 +28,23 @@ return $c;
         $legacy = ['CAM-01' => 'REC-ROAD-001', 'CAM-02' => 'REC-002', 'CAM-03' => 'REC-CROWD-003'];
         $records = [];
         foreach ($this->cameras() as $index => $c) {
-            if (! $c['online']) continue;
+            if (! $c['online'] || ($c['mode'] ?? '') === 'archive') {
+                continue;
+            }
             $records[] = ['id' => $c['recordId'] ?? $legacy[$c['id']], 'cam' => $index, 'start' => $c['recordedStart'] ?? '08.00', 'date' => $c['recordedDate'] ?? now('Asia/Jakarta')->toDateString(), 'sourceTime' => isset($c['recordedDate']), 'protected' => $c['id'] === 'CAM-02'];
         }
+
+        $cameras = $this->cameras();
+        foreach (DB::table('video_archives')->whereNull('expired_at')->where('record_key', 'like', 'ARC-%')->orderByDesc('file_modified_at')->get() as $archive) {
+            $index = array_search($archive->camera_key, array_column($cameras, 'id'), true);
+            if ($index === false) {
+                continue;
+            }
+            $records[] = ['id' => $archive->record_key, 'cam' => $index, 'start' => substr($archive->file_modified_at, 11, 8), 'date' => substr($archive->file_modified_at, 0, 10),
+                'sourceTime' => true, 'timeBasis' => 'file', 'protected' => app(CctvStorage::class)->protected($archive->record_key),
+                'video' => route('archives.play', $archive->id), 'seconds' => null, 'fileName' => $archive->file_name];
+        }
+
         return $records;
     }
 
@@ -42,8 +58,17 @@ return $c;
     public function index()
     {
         $s = DB::table('workspace_settings')->pluck('payload', 'key')->map(fn ($v) => json_decode($v, true));
-        $boot = ['cameras' => $this->cameras(), 'records' => $this->recordings(), 'incidents' => DB::table('incidents')->latest('id')->get()->map(fn ($r) => $this->payload($r))->all(), 'policy' => $s['policy'] ?? null, 'settings' => $s['settings'] ?? [],
-            'urls' => ['incidents' => route('incidents.store'), 'protect' => route('incidents.protect', ['id' => '__ID__']), 'policy' => route('policy.save'), 'settings' => route('settings.save')]];
+        $publicCamera = config('public-camera.enabled') ? [
+            'name' => config('public-camera.name'),
+            'zone' => config('public-camera.location'),
+            'embedUrl' => config('public-camera.embed_url'),
+            'source' => config('public-camera.source_url'),
+            'statusUrl' => route('public-camera.status'),
+        ] : null;
+        $storage = app(CctvStorage::class);
+        $cameraSetup = $s['camera_setup'] ?? ['enabled' => false, 'name' => 'Kamera 1', 'location' => '', 'player_url' => ''];
+        $boot = ['storage' => $storage->status(), 'cameraSetup' => $cameraSetup, 'cameras' => $this->cameras(), 'publicCamera' => $publicCamera, 'records' => $this->recordings(), 'incidents' => DB::table('incidents')->latest('id')->get()->map(fn ($r) => $this->payload($r))->all(), 'policy' => $s['policy'] ?? null, 'settings' => $s['settings'] ?? [],
+            'urls' => ['storageStatus' => route('storage.status'), 'storageConfigure' => route('storage.configure'), 'storageRun' => route('storage.run'), 'restoreTest' => route('storage.restore', ['id' => '__ID__']), 'cameraSetup' => route('camera-setup.save'), 'incidents' => route('incidents.store'), 'protect' => route('incidents.protect', ['id' => '__ID__']), 'policy' => route('policy.save'), 'settings' => route('settings.save')]];
 
         return response()->view('dashboard', compact('boot'))->header('Cache-Control', 'no-store');
     }
@@ -97,6 +122,6 @@ return $c;
         $allowed = array_map(fn ($c) => basename($c['video'] ?? ''), $this->cameras());
         abort_unless(preg_match('/\A[a-z0-9-]+\.mp4\z/', $file) && in_array($file, $allowed, true), 404);
 
-        return response()->file(storage_path('app/demo-media/'.$file),['Content-Type' => 'video/mp4', 'Cache-Control' => 'private, no-store']);
+        return response()->file(storage_path('app/demo-media/'.$file), ['Content-Type' => 'video/mp4', 'Cache-Control' => 'private, no-store']);
     }
 }
